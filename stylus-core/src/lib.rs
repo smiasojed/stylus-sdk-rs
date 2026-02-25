@@ -8,10 +8,8 @@ extern crate alloc;
 
 pub mod calls;
 pub mod host;
-pub mod sol;
 pub mod storage;
 
 pub use calls::*;
 pub use host::*;
-pub use sol::*;
 pub use storage::TopLevelStorage;

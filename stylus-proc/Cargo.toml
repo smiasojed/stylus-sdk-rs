@@ -40,6 +40,7 @@ assert_cmd = "2.0"
 default = ["trybuild-tests"]
 export-abi = ["stylus-sdk/export-abi"]
 reentrant = []
+revive = []
 stylus-test = ["stylus-sdk/stylus-test"]
 trybuild-tests = []
 contract-client-gen = []

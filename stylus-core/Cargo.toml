@@ -15,8 +15,6 @@ alloy-primitives.workspace = true
 alloy-sol-types.workspace = true
 cfg-if.workspace = true
 dyn-clone = "1.0.17"
-regex.workspace = true
-lazy_static.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 alloy-primitives = { workspace = true, features = ["native-keccak"] }
@@ -26,3 +24,4 @@ alloy-primitives = { workspace = true, features = ["native-keccak"] }
 [features]
 default = []
 reentrant = []
+revive = []

@@ -198,7 +198,7 @@ impl Storage {
                         return Ok(());
                     }
                     stylus_sdk::console!("method {method_name} not payable");
-                    Err(vec![])
+                    Err(alloc::vec![])
                 }
             }
         }

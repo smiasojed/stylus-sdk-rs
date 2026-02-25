@@ -9,6 +9,348 @@
 //!
 use cfg_if::cfg_if;
 
+// When the `revive` feature is enabled, provide implementations that call
+// pallet-revive-uapi host functions instead of WASM imports.
+#[cfg(feature = "revive")]
+mod revive_impl {
+    use pallet_revive_uapi::{HostFn, HostFnImpl as api, StorageFlags};
+
+    /// Helper: read a U256 ([u8; 32]) from pallet-revive and extract the low u64.
+    /// pallet-revive returns values in big-endian format.
+    #[inline]
+    fn u256_to_u64(bytes: &[u8; 32]) -> u64 {
+        u64::from_be_bytes(bytes[24..32].try_into().unwrap())
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn account_balance(address: *const u8, dest: *mut u8) {
+        let addr: &[u8; 20] = &*(address as *const [u8; 20]);
+        let mut output = [0u8; 32];
+        api::balance_of(addr, &mut output);
+        core::ptr::copy_nonoverlapping(output.as_ptr(), dest, 32);
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn account_code(_address: *const u8, _offset: usize, _size: usize, _dest: *mut u8) -> usize {
+        // Not available in pallet-revive
+        0
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn account_code_size(address: *const u8) -> usize {
+        let addr: &[u8; 20] = &*(address as *const [u8; 20]);
+        api::code_size(addr) as usize
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn account_codehash(address: *const u8, dest: *mut u8) {
+        let addr: &[u8; 20] = &*(address as *const [u8; 20]);
+        let mut output = [0u8; 32];
+        api::code_hash(addr, &mut output);
+        core::ptr::copy_nonoverlapping(output.as_ptr(), dest, 32);
+    }
+
+    #[allow(dead_code, clippy::missing_safety_doc)]
+    pub unsafe fn storage_load_bytes32(key: *const u8, dest: *mut u8) {
+        let key_ref: &[u8; 32] = &*(key as *const [u8; 32]);
+        let dest_ref: &mut [u8; 32] = &mut *(dest as *mut [u8; 32]);
+        api::get_storage_or_zero(StorageFlags::empty(), key_ref, dest_ref);
+    }
+
+    #[allow(dead_code, clippy::missing_safety_doc)]
+    pub unsafe fn storage_cache_bytes32(key: *const u8, value: *const u8) {
+        let key_ref: &[u8; 32] = &*(key as *const [u8; 32]);
+        let value_ref: &[u8; 32] = &*(value as *const [u8; 32]);
+        api::set_storage_or_clear(StorageFlags::empty(), key_ref, value_ref);
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn storage_flush_cache(_clear: bool) {
+        // No-op: pallet-revive writes storage immediately
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn block_basefee(basefee: *mut u8) {
+        let dest: &mut [u8; 32] = &mut *(basefee as *mut [u8; 32]);
+        api::base_fee(dest);
+    }
+
+    pub unsafe fn chainid() -> u64 {
+        let mut output = [0u8; 32];
+        api::chain_id(&mut output);
+        u256_to_u64(&output)
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn block_coinbase(coinbase: *mut u8) {
+        let dest: &mut [u8; 20] = &mut *(coinbase as *mut [u8; 20]);
+        api::block_author(dest);
+    }
+
+    pub unsafe fn block_gas_limit() -> u64 {
+        api::gas_limit()
+    }
+
+    pub unsafe fn block_number() -> u64 {
+        let mut output = [0u8; 32];
+        api::block_number(&mut output);
+        u256_to_u64(&output)
+    }
+
+    pub unsafe fn block_timestamp() -> u64 {
+        let mut output = [0u8; 32];
+        api::now(&mut output);
+        u256_to_u64(&output)
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn call_contract(
+        contract: *const u8,
+        calldata: *const u8,
+        calldata_len: usize,
+        value: *const u8,
+        gas: u64,
+        return_data_len: *mut usize,
+    ) -> u8 {
+        let callee: &[u8; 20] = &*(contract as *const [u8; 20]);
+        let input = core::slice::from_raw_parts(calldata, calldata_len);
+        let value_ref: &[u8; 32] = &*(value as *const [u8; 32]);
+
+        let result = api::call_evm(
+            pallet_revive_uapi::CallFlags::empty(),
+            callee,
+            gas,
+            value_ref,
+            input,
+            None,
+        );
+
+        let ret_data_size = api::return_data_size() as usize;
+        *return_data_len = ret_data_size;
+
+        match result {
+            Ok(()) => 0,
+            Err(_) => 1,
+        }
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn contract_address(address: *mut u8) {
+        let dest: &mut [u8; 20] = &mut *(address as *mut [u8; 20]);
+        api::address(dest);
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn create1(
+        _code: *const u8,
+        _code_len: usize,
+        _endowment: *const u8,
+        _contract: *mut u8,
+        _revert_data_len: *mut usize,
+    ) {
+        // TODO: implement via api::instantiate
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn create2(
+        _code: *const u8,
+        _code_len: usize,
+        _endowment: *const u8,
+        _salt: *const u8,
+        _contract: *mut u8,
+        _revert_data_len: *mut usize,
+    ) {
+        // TODO: implement via api::instantiate
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn delegate_call_contract(
+        contract: *const u8,
+        calldata: *const u8,
+        calldata_len: usize,
+        gas: u64,
+        return_data_len: *mut usize,
+    ) -> u8 {
+        let callee: &[u8; 20] = &*(contract as *const [u8; 20]);
+        let input = core::slice::from_raw_parts(calldata, calldata_len);
+
+        let result = api::delegate_call_evm(
+            pallet_revive_uapi::CallFlags::empty(),
+            callee,
+            gas,
+            input,
+            None,
+        );
+
+        let ret_data_size = api::return_data_size() as usize;
+        *return_data_len = ret_data_size;
+
+        match result {
+            Ok(()) => 0,
+            Err(_) => 1,
+        }
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn emit_log(data: *const u8, len: usize, topics: usize) {
+        let all_data = core::slice::from_raw_parts(data, len);
+        let topic_bytes = topics * 32;
+        let topic_data = &all_data[..topic_bytes];
+        let event_data = &all_data[topic_bytes..];
+
+        // Convert flat bytes to &[[u8; 32]]
+        let topics_slice: &[[u8; 32]] = core::slice::from_raw_parts(
+            topic_data.as_ptr() as *const [u8; 32],
+            topics,
+        );
+
+        api::deposit_event(topics_slice, event_data);
+    }
+
+    pub unsafe fn evm_gas_left() -> u64 {
+        api::gas_left()
+    }
+
+    pub unsafe fn evm_ink_left() -> u64 {
+        0 // Stylus-specific, no equivalent in pallet-revive
+    }
+
+    #[allow(unused_variables)]
+    pub unsafe fn pay_for_memory_grow(_pages: u16) {
+        // No-op: not needed in PolkaVM
+    }
+
+    pub unsafe fn msg_reentrant() -> bool {
+        false // No equivalent in pallet-revive
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn msg_sender(sender: *mut u8) {
+        let dest: &mut [u8; 20] = &mut *(sender as *mut [u8; 20]);
+        api::caller(dest);
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn msg_value(value: *mut u8) {
+        let dest: &mut [u8; 32] = &mut *(value as *mut [u8; 32]);
+        api::value_transferred(dest);
+    }
+
+    #[allow(unused, clippy::missing_safety_doc)]
+    pub unsafe fn native_keccak256(bytes: *const u8, len: usize, output: *mut u8) {
+        let input = core::slice::from_raw_parts(bytes, len);
+        let dest: &mut [u8; 32] = &mut *(output as *mut [u8; 32]);
+        api::hash_keccak_256(input, dest);
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn read_args(dest: *mut u8) {
+        let len = api::call_data_size() as usize;
+        if len > 0 {
+            let buf = core::slice::from_raw_parts_mut(dest, len);
+            api::call_data_copy(buf, 0);
+        }
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn read_return_data(dest: *mut u8, offset: usize, size: usize) -> usize {
+        let ret_size = api::return_data_size() as usize;
+        let available = ret_size.saturating_sub(offset);
+        let to_copy = core::cmp::min(size, available);
+        if to_copy > 0 {
+            let mut buf_vec = alloc::vec![0u8; to_copy];
+            let mut buf_slice: &mut [u8] = &mut buf_vec;
+            api::return_data_copy(&mut buf_slice, offset as u32);
+            let copied = buf_slice.len();
+            core::ptr::copy_nonoverlapping(buf_vec.as_ptr(), dest, copied);
+            copied
+        } else {
+            0
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub unsafe fn write_result(_data: *const u8, _len: usize) {
+        // No-op: in pallet-revive, return data is passed via return_value() in the entrypoint
+    }
+
+    pub unsafe fn return_data_size() -> usize {
+        api::return_data_size() as usize
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn static_call_contract(
+        contract: *const u8,
+        calldata: *const u8,
+        calldata_len: usize,
+        gas: u64,
+        return_data_len: *mut usize,
+    ) -> u8 {
+        let callee: &[u8; 20] = &*(contract as *const [u8; 20]);
+        let input = core::slice::from_raw_parts(calldata, calldata_len);
+        let zero_value = [0u8; 32];
+
+        let result = api::call_evm(
+            pallet_revive_uapi::CallFlags::READ_ONLY,
+            callee,
+            gas,
+            &zero_value,
+            input,
+            None,
+        );
+
+        let ret_data_size = api::return_data_size() as usize;
+        *return_data_len = ret_data_size;
+
+        match result {
+            Ok(()) => 0,
+            Err(_) => 1,
+        }
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn tx_gas_price(gas_price: *mut u8) {
+        // pallet-revive returns gas_price as u64, we need to write it as U256 (32 bytes BE)
+        let price = api::gas_price();
+        let dest: &mut [u8; 32] = &mut *(gas_price as *mut [u8; 32]);
+        *dest = [0u8; 32];
+        dest[24..32].copy_from_slice(&price.to_be_bytes());
+    }
+
+    pub unsafe fn tx_ink_price() -> u32 {
+        1 // Stylus-specific, no equivalent
+    }
+
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn tx_origin(origin: *mut u8) {
+        let dest: &mut [u8; 20] = &mut *(origin as *mut [u8; 20]);
+        api::origin(dest);
+    }
+}
+
+#[cfg(feature = "revive")]
+pub use revive_impl::*;
+
+// Console stubs for revive (no-ops)
+#[cfg(feature = "revive")]
+mod revive_console {
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn log_f32(_value: f32) {}
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn log_f64(_value: f64) {}
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn log_i32(_value: i32) {}
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn log_i64(_value: i64) {}
+    #[allow(unused_variables, clippy::missing_safety_doc)]
+    pub unsafe fn log_txt(_text: *const u8, _len: usize) {}
+}
+
+#[cfg(feature = "revive")]
+pub use revive_console::*;
+
+// Original vm_hooks macro for non-revive builds
+#[cfg(not(feature = "revive"))]
 macro_rules! vm_hooks {
     (
         $(#[$block_meta:meta])*             // macros & docstrings to apply to all funcs
@@ -57,6 +399,7 @@ macro_rules! vm_hooks {
     };
 }
 
+#[cfg(not(feature = "revive"))]
 vm_hooks! {
     module("vm_hooks", vm_hooks);
 
@@ -384,6 +727,7 @@ vm_hooks! {
     pub fn tx_origin(origin: *mut u8)
 }
 
+#[cfg(not(feature = "revive"))]
 vm_hooks! {
     #[allow(dead_code)]
     module("console", console);

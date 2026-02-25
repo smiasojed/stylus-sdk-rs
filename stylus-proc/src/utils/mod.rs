@@ -12,6 +12,44 @@ pub mod attrs;
 #[cfg(test)]
 pub mod testing;
 
+/// Check if a name is a Solidity keyword.
+pub fn is_sol_keyword(name: &str) -> bool {
+    lazy_static::lazy_static! {
+        static ref UINT_REGEX: regex::Regex = regex::Regex::new(r"^uint(\d+)$").unwrap();
+        static ref INT_REGEX: regex::Regex = regex::Regex::new(r"^int(\d+)$").unwrap();
+        static ref BYTES_REGEX: regex::Regex = regex::Regex::new(r"^bytes(\d+)$").unwrap();
+    }
+
+    if let Some(caps) = UINT_REGEX.captures(name) {
+        let bits: usize = caps[1].parse().unwrap();
+        if bits % 8 == 0 {
+            return true;
+        }
+    }
+    if let Some(caps) = INT_REGEX.captures(name) {
+        let bits: usize = caps[1].parse().unwrap();
+        if bits % 8 == 0 {
+            return true;
+        }
+    }
+    if let Some(caps) = BYTES_REGEX.captures(name) {
+        let n: usize = caps[1].parse().unwrap();
+        if n <= 32 {
+            return true;
+        }
+    }
+    matches!(
+        name,
+        "address" | "bytes" | "bool" | "int" | "uint"
+            | "is" | "contract" | "interface"
+            | "after" | "alias" | "apply" | "auto" | "byte" | "case" | "copyof"
+            | "default" | "define" | "final" | "implements" | "in" | "inline"
+            | "let" | "macro" | "match" | "mutable" | "null" | "of" | "partial"
+            | "promise" | "reference" | "relocatable" | "sealed" | "sizeof"
+            | "static" | "supports" | "switch" | "typedef" | "typeof" | "var"
+    )
+}
+
 pub fn get_generics(
     generics: &syn::Generics,
 ) -> (

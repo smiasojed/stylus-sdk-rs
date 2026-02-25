@@ -14,7 +14,7 @@ version.workspace = true
 alloy-primitives.workspace = true
 alloy-sol-types.workspace = true
 cfg-if.workspace = true
-clap.workspace = true
+clap = { workspace = true, optional = true }
 derivative.workspace = true
 hex = { workspace = true, default-features = false, features = ["alloc"] }
 keccak-const.workspace = true
@@ -23,12 +23,17 @@ keccak-const.workspace = true
 mini-alloc = { workspace = true, optional = true }
 stylus-proc.workspace = true
 stylus-core.workspace = true
-ruint = "=1.15.0"
-branches = "=0.2.1"
-rclite = "=0.2.7"
+
+# revive (pallet-revive) deps
+pallet-revive-uapi = { workspace = true, optional = true }
+polkavm-derive = { workspace = true, optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 alloy-primitives = { workspace = true, features = ["native-keccak"] }
+# version pins for wasm32 compatibility
+ruint = "=1.15.0"
+branches = "=0.2.1"
+rclite = "=0.2.7"
 
 # Ensure these dependencies won't be included in wasm32 target
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -46,10 +51,11 @@ features = ["default", "docs", "debug", "export-abi", "stylus-test"]
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["debug", "stylus-proc/export-abi", "alloy-primitives/tiny-keccak"]
+export-abi = ["dep:clap", "debug", "stylus-proc/export-abi", "alloy-primitives/tiny-keccak"]
 debug = []
 docs = []
 hostio = []
 mini-alloc = ["dep:mini-alloc"]
 stylus-test = ["dep:stylus-test", "dep:rclite", "stylus-proc/stylus-test"]
 reentrant = ["stylus-proc/reentrant", "stylus-core/reentrant", "stylus-test/reentrant"]
+revive = ["dep:pallet-revive-uapi", "dep:polkavm-derive", "stylus-proc/revive", "stylus-core/revive"]

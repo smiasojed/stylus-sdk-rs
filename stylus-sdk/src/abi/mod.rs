@@ -130,6 +130,8 @@ where
             if let Some(res) = R::constructor(&mut storage, &input[4..]) {
                 return res;
             }
+            // No explicit constructor defined — deployment succeeds
+            return Ok(Vec::new());
         } else if let Some(res) = R::route(&mut storage, selector, &input[4..]) {
             return res;
         } else {

@@ -26,7 +26,7 @@ pub fn entrypoint(
 
 struct Entrypoint {
     kind: EntrypointKind,
-    user_entrypoint_fn: Option<syn::ItemFn>,
+    user_entrypoint_fn: Option<TokenStream>,
 }
 impl Parse for Entrypoint {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -135,14 +135,16 @@ fn struct_entrypoint_fn(name: &Ident) -> syn::ItemFn {
     }
 }
 
-fn user_entrypoint_fn(user_fn: Ident) -> Option<syn::ItemFn> {
+fn user_entrypoint_fn(user_fn: Ident) -> Option<TokenStream> {
     let _ = user_fn;
     cfg_if::cfg_if! {
         if #[cfg(feature = "stylus-test")] {
             None
+        } else if #[cfg(feature = "revive")] {
+            revive_entrypoint_fns(user_fn)
         } else {
             let deny_reentrant = deny_reentrant();
-            Some(parse_quote! {
+            let item: syn::ItemFn = parse_quote! {
                 #[no_mangle]
                 #[cfg(not(feature = "contract-client-gen"))]
                 pub extern "C" fn user_entrypoint(len: usize) -> usize {
@@ -166,13 +168,67 @@ fn user_entrypoint_fn(user_fn: Ident) -> Option<syn::ItemFn> {
                     host.write_result(&data);
                     status
                 }
-            })
+            };
+            Some(item.into_token_stream())
         }
     }
 }
 
+/// Generate deploy() and call() entry points for pallet-revive (PolkaVM).
+#[cfg(feature = "revive")]
+fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
+    Some(quote! {
+        #[no_mangle]
+        #[polkavm_derive::polkavm_export]
+        #[cfg(not(feature = "contract-client-gen"))]
+        pub extern "C" fn deploy() {
+            use stylus_sdk::pallet_revive_uapi::HostFn as _;
+            use stylus_sdk::stylus_core::CalldataAccess as _;
+            let host = stylus_sdk::host::VM { host: stylus_sdk::host::WasmVM {} };
+            let len = stylus_sdk::pallet_revive_uapi::HostFnImpl::call_data_size() as usize;
+            let args = host.read_args(len);
+            // Prepend CONSTRUCTOR_SELECTOR so router_entrypoint dispatches to constructor
+            let selector = stylus_sdk::abi::CONSTRUCTOR_SELECTOR.to_be_bytes();
+            let mut input = alloc::vec::Vec::with_capacity(4 + args.len());
+            input.extend_from_slice(&selector);
+            input.extend_from_slice(&args);
+            match #user_fn(input, host) {
+                Ok(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
+                    stylus_sdk::pallet_revive_uapi::ReturnFlags::empty(),
+                    &data,
+                ),
+                Err(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
+                    stylus_sdk::pallet_revive_uapi::ReturnFlags::REVERT,
+                    &data,
+                ),
+            }
+        }
+
+        #[no_mangle]
+        #[polkavm_derive::polkavm_export]
+        #[cfg(not(feature = "contract-client-gen"))]
+        pub extern "C" fn call() {
+            use stylus_sdk::pallet_revive_uapi::HostFn as _;
+            use stylus_sdk::stylus_core::CalldataAccess as _;
+            let host = stylus_sdk::host::VM { host: stylus_sdk::host::WasmVM {} };
+            let len = stylus_sdk::pallet_revive_uapi::HostFnImpl::call_data_size() as usize;
+            let input = host.read_args(len);
+            match #user_fn(input, host) {
+                Ok(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
+                    stylus_sdk::pallet_revive_uapi::ReturnFlags::empty(),
+                    &data,
+                ),
+                Err(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
+                    stylus_sdk::pallet_revive_uapi::ReturnFlags::REVERT,
+                    &data,
+                ),
+            }
+        }
+    })
+}
+
 /// Revert on reentrancy unless explicitly enabled
-#[cfg(not(feature = "stylus-test"))]
+#[cfg(not(any(feature = "stylus-test", feature = "revive")))]
 fn deny_reentrant() -> Option<syn::ExprIf> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "reentrant")] {

@@ -37,6 +37,9 @@ members = [
     "examples/variables",
     "examples/verify_signature",
 ]
+exclude = [
+    "examples/revive_counter",
+]
 resolver = "2"
 
 [workspace.package]
@@ -52,6 +55,8 @@ rust-version = "1.71.0"
 alloy-primitives = { version = "1.0.1", default-features = false }
 alloy-sol-types = { version = "1.0.1", default-features = false }
 cfg-if = "1.0.0"
+pallet-revive-uapi = { version = "0.10", default-features = false }
+polkavm-derive = { version = "0.31.0" }
 clap = { version = "4.5.4", features = [ "derive", "color" ] }
 derivative = { version = "2.2.0", features = ["use_core"] }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }

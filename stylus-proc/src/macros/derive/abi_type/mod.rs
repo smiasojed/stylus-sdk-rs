@@ -7,7 +7,7 @@ use proc_macro2::TokenStream;
 use proc_macro_error::emit_error;
 use quote::ToTokens;
 use std::marker::PhantomData;
-use stylus_core;
+use crate::utils::is_sol_keyword;
 use syn::{parse::Nothing, parse_macro_input, parse_quote};
 
 cfg_if! {
@@ -41,7 +41,7 @@ impl<E: DeriveAbiTypeExtension> DeriveAbiTypeGenerator<E> {
     fn impl_abi_type(&self) -> syn::ItemImpl {
         let name = &self.item.ident;
         let name_str = name.to_string();
-        if stylus_core::is_sol_keyword(&name_str) {
+        if is_sol_keyword(&name_str) {
             emit_error!(
                 name.span(),
                 "struct name cannot be a Solidity keyword: `{}`",

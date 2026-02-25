@@ -1,0 +1,19 @@
+[package]
+name = "revive-counter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+stylus-sdk = { path = "../../stylus-sdk", default-features = false, features = ["revive"] }
+alloy-primitives = { version = "1.0.1", default-features = false }
+polkavm-derive = "0.31.0"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
+overflow-checks = false

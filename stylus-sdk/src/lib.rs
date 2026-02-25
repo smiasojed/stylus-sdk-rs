@@ -38,6 +38,13 @@
 #[global_allocator]
 static ALLOC: mini_alloc::MiniAlloc = mini_alloc::MiniAlloc::INIT;
 
+#[cfg(feature = "revive")]
+mod revive_alloc;
+
+#[cfg(feature = "revive")]
+#[global_allocator]
+static REVIVE_ALLOC: revive_alloc::BumpAllocator = revive_alloc::BumpAllocator::new();
+
 extern crate alloc;
 
 pub use alloy_primitives;
@@ -46,6 +53,11 @@ pub use hex;
 pub use keccak_const;
 pub use stylus_core;
 pub use stylus_proc;
+
+#[cfg(feature = "revive")]
+pub use pallet_revive_uapi;
+#[cfg(feature = "revive")]
+pub use polkavm_derive;
 
 #[cfg(all(feature = "stylus-test", target_arch = "wasm32"))]
 compile_error!("The `stylus-test` feature should not be enabled for wasm32 targets");

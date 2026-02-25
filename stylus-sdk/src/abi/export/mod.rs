@@ -10,7 +10,6 @@
 
 use clap::{Parser, Subcommand};
 use core::fmt;
-use stylus_core;
 
 #[doc(hidden)]
 pub mod internal;
@@ -113,13 +112,39 @@ fn print_constructor_signature<T: GenerateAbi>() {
     print!("{}", AbiPrinter(T::fmt_constructor_signature));
 }
 
+/// Check if a name is a Solidity keyword.
+fn is_sol_keyword(name: &str) -> bool {
+    for prefix in &["uint", "int", "bytes"] {
+        if let Some(rest) = name.strip_prefix(prefix) {
+            if let Ok(n) = rest.parse::<usize>() {
+                if *prefix == "bytes" && n >= 1 && n <= 32 {
+                    return true;
+                }
+                if *prefix != "bytes" && n % 8 == 0 && n >= 8 && n <= 256 {
+                    return true;
+                }
+            }
+        }
+    }
+    matches!(
+        name,
+        "address" | "bytes" | "bool" | "int" | "uint"
+            | "is" | "contract" | "interface"
+            | "after" | "alias" | "apply" | "auto" | "byte" | "case" | "copyof"
+            | "default" | "define" | "final" | "implements" | "in" | "inline"
+            | "let" | "macro" | "match" | "mutable" | "null" | "of" | "partial"
+            | "promise" | "reference" | "relocatable" | "sealed" | "sizeof"
+            | "static" | "supports" | "switch" | "typedef" | "typeof" | "var"
+    )
+}
+
 /// Prepends the string with an underscore if it is a Solidity keyword.
 /// Otherwise, the string is unchanged.
 /// Note: also prepends a space when the input is nonempty.
 pub fn underscore_if_sol(name: &str) -> String {
     let underscore = || format!(" _{name}");
 
-    if stylus_core::is_sol_keyword(name) {
+    if is_sol_keyword(name) {
         return underscore();
     }
 
