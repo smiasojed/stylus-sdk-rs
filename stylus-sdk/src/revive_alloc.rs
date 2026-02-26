@@ -55,9 +55,12 @@ unsafe impl GlobalAlloc for BumpAllocator {
 #[panic_handler]
 #[cfg(not(any(test, feature = "export-abi", feature = "stylus-test")))]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
-    // RISC-V illegal instruction to trap immediately
+    #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
     unsafe {
+        // RISC-V illegal instruction to trap immediately
         core::arch::asm!("unimp");
         core::hint::unreachable_unchecked()
     }
+    #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
+    loop {}
 }

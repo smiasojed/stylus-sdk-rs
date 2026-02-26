@@ -38,10 +38,13 @@
 #[global_allocator]
 static ALLOC: mini_alloc::MiniAlloc = mini_alloc::MiniAlloc::INIT;
 
-#[cfg(feature = "revive")]
+#[cfg(all(feature = "revive", target_arch = "wasm32"))]
+compile_error!("The `revive` feature should not be enabled for wasm32 targets");
+
+#[cfg(all(feature = "revive", not(target_arch = "wasm32")))]
 mod revive_alloc;
 
-#[cfg(feature = "revive")]
+#[cfg(all(feature = "revive", not(target_arch = "wasm32")))]
 #[global_allocator]
 static REVIVE_ALLOC: revive_alloc::BumpAllocator = revive_alloc::BumpAllocator::new();
 
