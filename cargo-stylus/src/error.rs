@@ -95,3 +95,21 @@ impl From<stylus_tools::core::network::NetworkError> for CargoStylusError {
         }
     }
 }
+
+impl From<stylus_tools::core::project::contract::ContractError> for CargoStylusError {
+    fn from(err: stylus_tools::core::project::contract::ContractError) -> Self {
+        Self {
+            error: err.into(),
+            exit_code: ExitCode::FAILURE,
+        }
+    }
+}
+
+impl From<cargo_metadata::Error> for CargoStylusError {
+    fn from(err: cargo_metadata::Error) -> Self {
+        Self {
+            error: err.into(),
+            exit_code: ExitCode::FAILURE,
+        }
+    }
+}

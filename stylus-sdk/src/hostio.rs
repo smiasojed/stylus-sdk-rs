@@ -145,10 +145,14 @@ mod revive_impl {
         _code: *const u8,
         _code_len: usize,
         _endowment: *const u8,
-        _contract: *mut u8,
-        _revert_data_len: *mut usize,
+        contract: *mut u8,
+        revert_data_len: *mut usize,
     ) {
-        // TODO: implement via api::instantiate
+        // TODO: implement via api::instantiate. Semantic mismatch: Stylus passes
+        // raw EVM init code, but pallet-revive instantiate expects code_hash || constructor_data.
+        // Zero out outputs so callers get a deterministic "deployment failed" result.
+        core::ptr::write_bytes(contract, 0, 20);
+        *revert_data_len = 0;
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
@@ -157,10 +161,14 @@ mod revive_impl {
         _code_len: usize,
         _endowment: *const u8,
         _salt: *const u8,
-        _contract: *mut u8,
-        _revert_data_len: *mut usize,
+        contract: *mut u8,
+        revert_data_len: *mut usize,
     ) {
-        // TODO: implement via api::instantiate
+        // TODO: implement via api::instantiate. Semantic mismatch: Stylus passes
+        // raw EVM init code, but pallet-revive instantiate expects code_hash || constructor_data.
+        // Zero out outputs so callers get a deterministic "deployment failed" result.
+        core::ptr::write_bytes(contract, 0, 20);
+        *revert_data_len = 0;
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]

@@ -178,20 +178,8 @@ fn user_entrypoint_fn(user_fn: Ident) -> Option<TokenStream> {
 #[cfg(feature = "revive")]
 fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
     Some(quote! {
-        #[no_mangle]
-        #[polkavm_derive::polkavm_export]
-        #[cfg(not(feature = "contract-client-gen"))]
-        pub extern "C" fn deploy() {
+        fn __revive_invoke(input: alloc::vec::Vec<u8>, host: stylus_sdk::host::VM) {
             use stylus_sdk::pallet_revive_uapi::HostFn as _;
-            use stylus_sdk::stylus_core::CalldataAccess as _;
-            let host = stylus_sdk::host::VM { host: stylus_sdk::host::WasmVM {} };
-            let len = stylus_sdk::pallet_revive_uapi::HostFnImpl::call_data_size() as usize;
-            let args = host.read_args(len);
-            // Prepend CONSTRUCTOR_SELECTOR so router_entrypoint dispatches to constructor
-            let selector = stylus_sdk::abi::CONSTRUCTOR_SELECTOR.to_be_bytes();
-            let mut input = alloc::vec::Vec::with_capacity(4 + args.len());
-            input.extend_from_slice(&selector);
-            input.extend_from_slice(&args);
             match #user_fn(input, host) {
                 Ok(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
                     stylus_sdk::pallet_revive_uapi::ReturnFlags::empty(),
@@ -207,22 +195,30 @@ fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
         #[no_mangle]
         #[polkavm_derive::polkavm_export]
         #[cfg(not(feature = "contract-client-gen"))]
+        pub extern "C" fn deploy() {
+            use stylus_sdk::pallet_revive_uapi::HostFn as _;
+            use stylus_sdk::stylus_core::CalldataAccess as _;
+            let host = stylus_sdk::host::VM { host: stylus_sdk::host::WasmVM {} };
+            let len = stylus_sdk::pallet_revive_uapi::HostFnImpl::call_data_size() as usize;
+            let args = host.read_args(len);
+            // Prepend CONSTRUCTOR_SELECTOR so router_entrypoint dispatches to constructor
+            let selector = stylus_sdk::abi::CONSTRUCTOR_SELECTOR.to_be_bytes();
+            let mut input = alloc::vec::Vec::with_capacity(4 + args.len());
+            input.extend_from_slice(&selector);
+            input.extend_from_slice(&args);
+            __revive_invoke(input, host);
+        }
+
+        #[no_mangle]
+        #[polkavm_derive::polkavm_export]
+        #[cfg(not(feature = "contract-client-gen"))]
         pub extern "C" fn call() {
             use stylus_sdk::pallet_revive_uapi::HostFn as _;
             use stylus_sdk::stylus_core::CalldataAccess as _;
             let host = stylus_sdk::host::VM { host: stylus_sdk::host::WasmVM {} };
             let len = stylus_sdk::pallet_revive_uapi::HostFnImpl::call_data_size() as usize;
             let input = host.read_args(len);
-            match #user_fn(input, host) {
-                Ok(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
-                    stylus_sdk::pallet_revive_uapi::ReturnFlags::empty(),
-                    &data,
-                ),
-                Err(data) => stylus_sdk::pallet_revive_uapi::HostFnImpl::return_value(
-                    stylus_sdk::pallet_revive_uapi::ReturnFlags::REVERT,
-                    &data,
-                ),
-            }
+            __revive_invoke(input, host);
         }
     })
 }

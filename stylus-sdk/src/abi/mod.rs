@@ -130,7 +130,9 @@ where
             if let Some(res) = R::constructor(&mut storage, &input[4..]) {
                 return res;
             }
-            // No explicit constructor defined — deployment succeeds
+            // For revive: no explicit constructor — deployment succeeds.
+            // For wasm32: fall through to fallback/revert (preserves original behavior).
+            #[cfg(feature = "revive")]
             return Ok(Vec::new());
         } else if let Some(res) = R::route(&mut storage, selector, &input[4..]) {
             return res;

@@ -16,7 +16,7 @@ use cargo_util_schemas::manifest::PackageName;
 use eyre::{eyre, Context};
 use stylus_tools::core::{
     activation::ActivationConfig,
-    build::BuildConfig,
+    build::{BuildConfig, Target},
     check::CheckConfig,
     deployment::DeploymentConfig,
     project::{contract::Contract, workspace::Workspace},
@@ -116,12 +116,20 @@ pub struct BuildArgs {
     // TODO: where is this default set?
     #[arg(long)]
     source_files_for_project_hash: Vec<String>,
+    /// Build target: wasm (default) or pvm (PolkaVM/pallet-revive).
+    #[arg(long, default_value = "wasm")]
+    pub target: String,
 }
 
 impl BuildArgs {
     pub fn config(&self) -> BuildConfig {
+        let target = match self.target.as_str() {
+            "pvm" | "polkavm" | "revive" => Target::Pvm,
+            _ => Target::Wasm,
+        };
         BuildConfig {
             features: self.features.clone(),
+            target,
             ..Default::default()
         }
     }
