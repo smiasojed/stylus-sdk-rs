@@ -9,7 +9,7 @@ extern crate alloc;
 use alloy_primitives::Address;
 use stylus_sdk::{
     abi::Bytes,
-    call::{call, transfer::transfer_eth},
+    call::{call as sdk_call, transfer::transfer_eth},
     prelude::*,
 };
 
@@ -40,7 +40,7 @@ impl SendEther {
     pub fn send_via_call(&mut self, to: Address) -> Result<(), Vec<u8>> {
         let value = self.vm().msg_value();
         let context = Call::new_payable(self, value);
-        call(self.vm(), context, to, &[])?;
+        sdk_call(self.vm(), context, to, &[])?;
         Ok(())
     }
 
@@ -50,7 +50,7 @@ impl SendEther {
     pub fn send_via_call_gas_limit(&mut self, to: Address, gas_amount: u64) -> Result<(), Vec<u8>> {
         let value = self.vm().msg_value();
         let context = Call::new_payable(self, value).gas(gas_amount);
-        call(self.vm(), context, to, &[])?;
+        sdk_call(self.vm(), context, to, &[])?;
         Ok(())
     }
 
@@ -64,7 +64,7 @@ impl SendEther {
     ) -> Result<(), Vec<u8>> {
         let value = self.vm().msg_value();
         let context = Call::new_payable(self, value);
-        call(self.vm(), context, to, &data)?;
+        sdk_call(self.vm(), context, to, &data)?;
         Ok(())
     }
 

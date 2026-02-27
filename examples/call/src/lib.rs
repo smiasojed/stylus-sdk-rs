@@ -9,7 +9,7 @@ extern crate alloc;
 use stylus_sdk::{
     abi::Bytes,
     alloy_primitives::{Address, U256},
-    call::{call, static_call, RawCall},
+    call::{call as sdk_call, static_call, RawCall},
     prelude::*,
 };
 
@@ -103,7 +103,7 @@ impl ExampleContract {
     ) -> Result<Vec<u8>, Vec<u8>> {
         let config = Call::new_mutating(self) // Configuration for gas, value, etc.
             .gas(self.vm().evm_gas_left()); // Use half the remaining gas
-        let return_data = call(
+        let return_data = sdk_call(
             // Perform a low-level `call`
             self.vm(),
             config,

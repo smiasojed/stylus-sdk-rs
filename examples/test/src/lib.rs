@@ -147,7 +147,7 @@ impl Counter {
             return Err(b"Only owner can call this function".to_vec());
         }
         let context = Call::new_mutating(self);
-        let return_data = call(self.vm(), context, target, &data)
+        let return_data = stylus_sdk::call::call(self.vm(), context, target, &data)
             .map_err(|err| format!("{err:?}").as_bytes().to_vec())?;
         Ok(return_data)
     }

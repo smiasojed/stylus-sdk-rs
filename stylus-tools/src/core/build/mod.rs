@@ -170,6 +170,7 @@ fn build_contract_pvm(contract: &Contract, config: &BuildConfig) -> Result<PathB
     cmd.args(["build", "--lib", "--release"])
         .args(["--target", target_json_str])
         .args(["-Z", "build-std=core,alloc"])
+        .args(["-Z", "json-target-spec"])
         .env("RUSTC_BOOTSTRAP", "1")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());

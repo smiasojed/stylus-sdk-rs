@@ -15,11 +15,18 @@ use cfg_if::cfg_if;
 mod revive_impl {
     use pallet_revive_uapi::{HostFn, HostFnImpl as api, StorageFlags};
 
-    /// Helper: read a U256 ([u8; 32]) from pallet-revive and extract the low u64.
-    /// pallet-revive returns values in big-endian format.
+    /// Helper: reverse bytes of a [u8; 32] in-place (LE↔BE swap).
+    /// pallet-revive returns U256 values in little-endian format;
+    /// the SDK expects big-endian (Ethereum convention).
+    #[inline]
+    fn reverse_bytes_32(buf: &mut [u8; 32]) {
+        buf.reverse();
+    }
+
+    /// Helper: read a LE U256 from pallet-revive and extract the low u64.
     #[inline]
     fn u256_to_u64(bytes: &[u8; 32]) -> u64 {
-        u64::from_be_bytes(bytes[24..32].try_into().unwrap())
+        u64::from_le_bytes(bytes[0..8].try_into().unwrap())
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
@@ -27,6 +34,7 @@ mod revive_impl {
         let addr: &[u8; 20] = &*(address as *const [u8; 20]);
         let mut output = [0u8; 32];
         api::balance_of(addr, &mut output);
+        reverse_bytes_32(&mut output);
         core::ptr::copy_nonoverlapping(output.as_ptr(), dest, 32);
     }
 
@@ -47,6 +55,7 @@ mod revive_impl {
         let addr: &[u8; 20] = &*(address as *const [u8; 20]);
         let mut output = [0u8; 32];
         api::code_hash(addr, &mut output);
+        reverse_bytes_32(&mut output);
         core::ptr::copy_nonoverlapping(output.as_ptr(), dest, 32);
     }
 
@@ -71,8 +80,11 @@ mod revive_impl {
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
     pub unsafe fn block_basefee(basefee: *mut u8) {
+        let mut temp = [0u8; 32];
+        api::base_fee(&mut temp);
+        reverse_bytes_32(&mut temp);
         let dest: &mut [u8; 32] = &mut *(basefee as *mut [u8; 32]);
-        api::base_fee(dest);
+        *dest = temp;
     }
 
     pub unsafe fn chainid() -> u64 {
@@ -115,12 +127,15 @@ mod revive_impl {
         let callee: &[u8; 20] = &*(contract as *const [u8; 20]);
         let input = core::slice::from_raw_parts(calldata, calldata_len);
         let value_ref: &[u8; 32] = &*(value as *const [u8; 32]);
+        // Value arrives in BE from SDK; pallet-revive expects LE
+        let mut le_value = *value_ref;
+        reverse_bytes_32(&mut le_value);
 
         let result = api::call_evm(
             pallet_revive_uapi::CallFlags::empty(),
             callee,
             gas,
-            value_ref,
+            &le_value,
             input,
             None,
         );
@@ -212,7 +227,17 @@ mod revive_impl {
             topics,
         );
 
-        api::deposit_event(topics_slice, event_data);
+        // Topics arrive in BE from SDK; pallet-revive expects LE
+        let le_topics: alloc::vec::Vec<[u8; 32]> = topics_slice
+            .iter()
+            .map(|t| {
+                let mut swapped = *t;
+                reverse_bytes_32(&mut swapped);
+                swapped
+            })
+            .collect();
+
+        api::deposit_event(&le_topics, event_data);
     }
 
     pub unsafe fn evm_gas_left() -> u64 {
@@ -240,8 +265,11 @@ mod revive_impl {
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
     pub unsafe fn msg_value(value: *mut u8) {
+        let mut temp = [0u8; 32];
+        api::value_transferred(&mut temp);
+        reverse_bytes_32(&mut temp);
         let dest: &mut [u8; 32] = &mut *(value as *mut [u8; 32]);
-        api::value_transferred(dest);
+        *dest = temp;
     }
 
     #[allow(unused, clippy::missing_safety_doc)]
