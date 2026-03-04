@@ -1,6 +1,7 @@
 // Copyright 2025, Offchain Labs, Inc.
 // For licensing, see https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/licenses/COPYRIGHT.md
 
+use alloc::string::String;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_sol_types::sol;
 use stylus_sdk::prelude::*;

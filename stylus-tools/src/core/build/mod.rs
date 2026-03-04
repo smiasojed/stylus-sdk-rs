@@ -171,13 +171,18 @@ fn build_contract_pvm(contract: &Contract, config: &BuildConfig) -> Result<PathB
         .args(["--target", target_json_str])
         .args(["-Z", "build-std=core,alloc"])
         .args(["-Z", "json-target-spec"])
-        .env("RUSTC_BOOTSTRAP", "1")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 
-    if !config.features.is_empty() {
-        cmd.args(["--features", &config.features.join(",")]);
+    // Always enable stylus-sdk/revive for PVM builds so the SDK exports
+    // polkavm_derive and enables PVM-specific entrypoint code generation.
+    let mut features = config.features.clone();
+    let sdk_revive = "stylus-sdk/revive".to_string();
+    if !features.contains(&sdk_revive) {
+        features.push(sdk_revive);
     }
+    cmd.args(["--features", &features.join(",")]);
+
     if matches!(config.opt_level, OptLevel::Z) {
         cmd.args(["--config", OPT_LEVEL_Z_CONFIG]);
     }

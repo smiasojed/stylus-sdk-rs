@@ -39,6 +39,7 @@ members = [
 ]
 exclude = [
     "examples/revive_counter",
+    "examples/revive_factory",
 ]
 resolver = "2"
 

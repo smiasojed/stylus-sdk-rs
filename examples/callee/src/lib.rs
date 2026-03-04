@@ -2,6 +2,7 @@
 // For licensing, see https://github.com/OffchainLabs/stylus-sdk-rs/blob/main/licenses/COPYRIGHT.md
 
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
+#![cfg_attr(target_env = "polkavm", no_std)]
 
 extern crate alloc;
 

@@ -4316,8 +4316,6 @@ dependencies = [
  "alloy-sol-types",
  "cfg-if",
  "dyn-clone",
- "lazy_static",
- "regex",
 ]
 
 [[package]]

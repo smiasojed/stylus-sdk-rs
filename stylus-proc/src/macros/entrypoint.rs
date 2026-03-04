@@ -175,9 +175,13 @@ fn user_entrypoint_fn(user_fn: Ident) -> Option<TokenStream> {
 }
 
 /// Generate deploy() and call() entry points for pallet-revive (PolkaVM).
+///
+/// Uses `#[stylus_sdk::polkavm_derive::polkavm_export(abi = ::stylus_sdk::polkavm_derive::default_abi)]` to mark the entry points,
+/// which is re-exported through stylus-sdk's `revive` feature.
 #[cfg(feature = "revive")]
 fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
     Some(quote! {
+        #[cfg(not(feature = "contract-client-gen"))]
         fn __revive_invoke(input: alloc::vec::Vec<u8>, host: stylus_sdk::host::VM) {
             use stylus_sdk::pallet_revive_uapi::HostFn as _;
             match #user_fn(input, host) {
@@ -193,8 +197,8 @@ fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
         }
 
         #[no_mangle]
-        #[polkavm_derive::polkavm_export]
         #[cfg(not(feature = "contract-client-gen"))]
+        #[stylus_sdk::polkavm_derive::polkavm_export(abi = ::stylus_sdk::polkavm_derive::default_abi)]
         pub extern "C" fn deploy() {
             use stylus_sdk::pallet_revive_uapi::HostFn as _;
             use stylus_sdk::stylus_core::CalldataAccess as _;
@@ -210,8 +214,8 @@ fn revive_entrypoint_fns(user_fn: Ident) -> Option<TokenStream> {
         }
 
         #[no_mangle]
-        #[polkavm_derive::polkavm_export]
         #[cfg(not(feature = "contract-client-gen"))]
+        #[stylus_sdk::polkavm_derive::polkavm_export(abi = ::stylus_sdk::polkavm_derive::default_abi)]
         pub extern "C" fn call() {
             use stylus_sdk::pallet_revive_uapi::HostFn as _;
             use stylus_sdk::stylus_core::CalldataAccess as _;

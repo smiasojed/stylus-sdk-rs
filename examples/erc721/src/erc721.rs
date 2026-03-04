@@ -14,7 +14,7 @@
 use crate::ierc721::{
     Erc721Error, InvalidTokenId, NotApproved, NotOwner, ReceiverRefused, TransferToZero,
 };
-use alloc::vec;
+use alloc::string::String;
 use alloy_primitives::{Address, Bytes, FixedBytes, U256};
 use alloy_sol_types::sol;
 use core::{borrow::BorrowMut, marker::PhantomData};

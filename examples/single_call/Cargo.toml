@@ -7,7 +7,7 @@ keywords = ["arbitrum", "ethereum", "stylus", "alloy"]
 description = "Stylus single call router contract"
 
 [dependencies]
-alloy-primitives = "1.0.1"
+alloy-primitives = { version = "1.0.1", default-features = false }
 stylus-sdk = { path = "../../stylus-sdk" }
 
 [dev-dependencies]

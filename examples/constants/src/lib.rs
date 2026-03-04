@@ -3,10 +3,9 @@
 
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 #![cfg_attr(feature = "contract-client-gen", allow(unused_imports))]
+#![cfg_attr(target_env = "polkavm", no_std)]
 
 extern crate alloc;
-
-use alloc::vec::Vec;
 
 use stylus_sdk::alloy_primitives::Address;
 use stylus_sdk::prelude::*;

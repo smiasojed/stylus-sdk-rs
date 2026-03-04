@@ -3,7 +3,6 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
 use alloy_primitives::U256;
 use stylus_sdk::prelude::*;
 use stylus_sdk::storage::StorageU256;

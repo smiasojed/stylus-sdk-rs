@@ -9,6 +9,7 @@
 //! use stylus_sdk::prelude::*;
 //! ```
 
+pub use alloc::{format, vec, vec::Vec};
 pub use crate::call::*;
 pub use crate::storage::{Erase, SimpleStorageType, StorageType};
 pub use crate::stylus_core::*;

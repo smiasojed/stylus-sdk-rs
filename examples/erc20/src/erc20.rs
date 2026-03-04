@@ -12,9 +12,10 @@
 //! Note that this code is unaudited and not fit for production use.
 
 // Imported packages
-use crate::ierc20::{Erc20Error, InsufficientAllowance, InsufficientBalance};
+use alloc::string::String;
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::sol;
+use crate::ierc20::{Erc20Error, InsufficientAllowance, InsufficientBalance};
 use core::marker::PhantomData;
 use stylus_sdk::prelude::*;
 
