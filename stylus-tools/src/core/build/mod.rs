@@ -170,7 +170,9 @@ fn build_contract_pvm(contract: &Contract, config: &BuildConfig) -> Result<PathB
     cmd.args(["build", "--lib", "--release"])
         .args(["--target", target_json_str])
         .args(["-Z", "build-std=core,alloc"])
+        .args(["-Z", "build-std-features=panic_immediate_abort"])
         .args(["-Z", "json-target-spec"])
+        .args(["--config", "profile.release.strip=false"])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 

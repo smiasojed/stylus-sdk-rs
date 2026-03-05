@@ -273,7 +273,8 @@ mod revive_impl {
     }
 
     #[allow(unused, clippy::missing_safety_doc)]
-    pub unsafe fn native_keccak256(bytes: *const u8, len: usize, output: *mut u8) {
+    #[no_mangle]
+    pub unsafe extern "C" fn native_keccak256(bytes: *const u8, len: usize, output: *mut u8) {
         let input = core::slice::from_raw_parts(bytes, len);
         let dest: &mut [u8; 32] = &mut *(output as *mut [u8; 32]);
         api::hash_keccak_256(input, dest);

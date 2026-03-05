@@ -21,7 +21,7 @@ pub struct Data {}
 
 #[public]
 impl Data {
-    fn user_main(_input: Vec<u8>) -> ArbResult {
+    fn demo() -> ArbResult {
         // Use native Rust primitives where they make sense
         // and where no equivalent Alloy primitive exists
         let frightened: bool = true;

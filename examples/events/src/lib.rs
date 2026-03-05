@@ -25,7 +25,7 @@ pub struct Events {}
 
 #[public]
 impl Events {
-    fn user_main(&self, _input: Vec<u8>) -> ArbResult {
+    fn emit_events(&self) -> ArbResult {
         // emits a 'Log' event, defined above in the sol! macro
         self.vm().log(Log {
             sender: Address::from([0x11; 20]),
