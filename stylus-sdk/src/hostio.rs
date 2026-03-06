@@ -40,8 +40,9 @@ mod revive_impl {
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
     pub unsafe fn account_code(_address: *const u8, _offset: usize, _size: usize, _dest: *mut u8) -> usize {
-        // Not available in pallet-revive
-        0
+        // pallet-revive does not support reading raw bytecode (no EXTCODECOPY equivalent).
+        // Use code_hash() or code_size() instead.
+        unimplemented!("EXTCODECOPY is not supported on pallet-revive; use code_hash() or code_size() instead")
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
@@ -157,33 +158,88 @@ mod revive_impl {
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
     pub unsafe fn create1(
-        _code: *const u8,
-        _code_len: usize,
-        _endowment: *const u8,
+        code: *const u8,
+        code_len: usize,
+        endowment: *const u8,
         contract: *mut u8,
         revert_data_len: *mut usize,
     ) {
-        // TODO: implement via api::instantiate. Semantic mismatch: Stylus passes
-        // raw EVM init code, but pallet-revive instantiate expects code_hash || constructor_data.
-        // Zero out outputs so callers get a deterministic "deployment failed" result.
-        core::ptr::write_bytes(contract, 0, 20);
-        *revert_data_len = 0;
+        let input = core::slice::from_raw_parts(code, code_len);
+        let endowment_ref: &[u8; 32] = &*(endowment as *const [u8; 32]);
+        let mut le_value = *endowment_ref;
+        reverse_bytes_32(&mut le_value);
+
+        let gas = api::gas_left();
+        let deposit = [0xff_u8; 32]; // no deposit limit
+        let mut address = [0u8; 20];
+
+        let result = api::instantiate(
+            gas,
+            gas,
+            &deposit,
+            &le_value,
+            input,
+            Some(&mut address),
+            None,
+            None, // no salt = CREATE1
+        );
+
+        match result {
+            Ok(()) => {
+                core::ptr::copy_nonoverlapping(address.as_ptr(), contract, 20);
+                *revert_data_len = 0;
+            }
+            Err(_) => {
+                core::ptr::write_bytes(contract, 0, 20);
+                *revert_data_len = api::return_data_size() as usize;
+            }
+        }
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]
     pub unsafe fn create2(
-        _code: *const u8,
-        _code_len: usize,
-        _endowment: *const u8,
-        _salt: *const u8,
+        code: *const u8,
+        code_len: usize,
+        endowment: *const u8,
+        salt: *const u8,
         contract: *mut u8,
         revert_data_len: *mut usize,
     ) {
-        // TODO: implement via api::instantiate. Semantic mismatch: Stylus passes
-        // raw EVM init code, but pallet-revive instantiate expects code_hash || constructor_data.
-        // Zero out outputs so callers get a deterministic "deployment failed" result.
-        core::ptr::write_bytes(contract, 0, 20);
-        *revert_data_len = 0;
+        let input = core::slice::from_raw_parts(code, code_len);
+        let endowment_ref: &[u8; 32] = &*(endowment as *const [u8; 32]);
+        let mut le_value = *endowment_ref;
+        reverse_bytes_32(&mut le_value);
+        let salt_ref: &[u8; 32] = &*(salt as *const [u8; 32]);
+        // Salt arrives in BE from SDK; pallet-revive expects LE
+        // (confirmed by revive compiler: create.rs does build_byte_swap on salt)
+        let mut le_salt = *salt_ref;
+        reverse_bytes_32(&mut le_salt);
+
+        let gas = api::gas_left();
+        let deposit = [0xff_u8; 32]; // no deposit limit
+        let mut address = [0u8; 20];
+
+        let result = api::instantiate(
+            gas,
+            gas,
+            &deposit,
+            &le_value,
+            input,
+            Some(&mut address),
+            None,
+            Some(&le_salt), // with salt (LE) = CREATE2
+        );
+
+        match result {
+            Ok(()) => {
+                core::ptr::copy_nonoverlapping(address.as_ptr(), contract, 20);
+                *revert_data_len = 0;
+            }
+            Err(_) => {
+                core::ptr::write_bytes(contract, 0, 20);
+                *revert_data_len = api::return_data_size() as usize;
+            }
+        }
     }
 
     #[allow(unused_variables, clippy::missing_safety_doc)]

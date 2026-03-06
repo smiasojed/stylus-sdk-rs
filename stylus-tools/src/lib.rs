@@ -20,6 +20,10 @@ pub mod deployer;
 #[cfg(feature = "integration-tests")]
 pub mod devnet;
 pub use deployer::*;
+#[cfg(feature = "integration-tests")]
+pub mod pvm_deployer;
+#[cfg(feature = "integration-tests")]
+pub use pvm_deployer::*;
 pub mod verifier;
 pub use verifier::*;
 mod activator;

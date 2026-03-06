@@ -25,6 +25,8 @@ const NITRO_IMAGE_TAG: &str = "v3.5.6-9a29a1e";
 const NITRO_PORT: u16 = 8547;
 
 mod bytecode;
+pub mod pvm_node;
+pub use pvm_node::PvmNode;
 
 pub mod addresses {
     pub use alloy::primitives::{address, Address};
