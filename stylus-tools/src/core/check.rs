@@ -9,7 +9,7 @@ use bytesize::ByteSize;
 use crate::{
     core::{
         activation::{self, ActivationConfig},
-        build::{build_contract, BuildConfig},
+        build::{build_contract, BuildConfig, Target},
         code::{
             wasm::{compress_wasm, process_wasm_file},
             Code,
@@ -60,10 +60,17 @@ pub async fn check_contract(
     config: &CheckConfig,
     provider: &impl Provider,
 ) -> Result<ContractStatus, CheckError> {
-    let wasm_file = build_contract(contract, &config.build)?;
+    let built_file = build_contract(contract, &config.build)?;
+
+    if matches!(config.build.target, Target::Pvm) {
+        let code = std::fs::read(&built_file)?;
+        info!(@grey, "PVM contract size: {}", format_file_size(ByteSize::b(code.len() as u64), ByteSize::kib(16), ByteSize::kib(24)));
+        return Ok(ContractStatus::Pvm { code });
+    }
+
     let dir = env::current_dir()?;
     let project_hash = hash_project(dir, &config.project, &config.build)?;
-    let status = check_wasm_file(&wasm_file, project_hash, address, config, provider).await?;
+    let status = check_wasm_file(&built_file, project_hash, address, config, provider).await?;
     Ok(status)
 }
 

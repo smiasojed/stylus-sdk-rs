@@ -13,6 +13,7 @@ use alloy::{
 use crate::{
     core::{
         activation::{self, ActivationError},
+        build::{build_contract, Target},
         cache::format_gas,
         check::{check_contract, check_wasm_file, CheckConfig},
         code::Code,
@@ -40,6 +41,10 @@ pub async fn estimate_gas(
     config: &DeploymentConfig,
     provider: &(impl Provider + WalletProvider),
 ) -> Result<u64, DeploymentError> {
+    if matches!(config.check.build.target, Target::Pvm) {
+        return estimate_gas_pvm(contract, config, provider).await;
+    }
+
     let status = check_contract(contract, None, &config.check, provider).await?;
     let from_address = provider.default_signer_address();
     debug!(@grey, "sender address: {}", from_address.debug_lavender());
@@ -133,6 +138,10 @@ pub async fn deploy(
     config: &DeploymentConfig,
     provider: &(impl Provider + WalletProvider),
 ) -> Result<(), DeploymentError> {
+    if matches!(config.check.build.target, Target::Pvm) {
+        return deploy_pvm(contract, config, provider).await;
+    }
+
     let status = check_contract(contract, None, &config.check, provider).await?;
     let from_address = provider.default_signer_address();
     debug!(@grey, "sender address: {}", from_address.debug_lavender());
@@ -268,6 +277,57 @@ pub async fn deploy(
     Ok(())
 }
 
+/// Deploys a PVM contract via a raw CREATE transaction.
+/// No activation step is needed — pallet-revive contracts are immediately executable.
+async fn deploy_pvm(
+    contract: &Contract,
+    config: &DeploymentConfig,
+    provider: &(impl Provider + WalletProvider),
+) -> Result<(), DeploymentError> {
+    let built_file = build_contract(contract, &config.check.build)?;
+    let bytecode = std::fs::read(&built_file).map_err(DeploymentError::Io)?;
+    let from_address = provider.default_signer_address();
+    debug!(@grey, "sender address: {}", from_address.debug_lavender());
+
+    let req = DeploymentRequest::new_pvm(from_address, &bytecode, config.max_fee_per_gas_gwei);
+    let receipt = req.exec(provider).await?;
+
+    let contract_addr = receipt
+        .contract_address
+        .ok_or(NoContractAddress("in receipt".to_string()))?;
+
+    info!(@grey, "deployed PVM contract at address: {}", contract_addr.debug_lavender());
+    debug!(@grey, "gas used: {}", format_gas(receipt.gas_used.into()));
+    info!(@grey, "deployment tx hash: {}", receipt.transaction_hash.debug_lavender());
+
+    Ok(())
+}
+
+/// Estimate gas cost for PVM contract deployment.
+async fn estimate_gas_pvm(
+    contract: &Contract,
+    config: &DeploymentConfig,
+    provider: &(impl Provider + WalletProvider),
+) -> Result<u64, DeploymentError> {
+    let built_file = build_contract(contract, &config.check.build)?;
+    let bytecode = std::fs::read(&built_file).map_err(DeploymentError::Io)?;
+    let from_address = provider.default_signer_address();
+
+    let req = DeploymentRequest::new_pvm(from_address, &bytecode, config.max_fee_per_gas_gwei);
+    let gas = req.estimate_gas(provider).await?;
+
+    let gas_price = match config.max_fee_per_gas_gwei {
+        Some(gwei) => gwei,
+        None => provider
+            .get_gas_price()
+            .await
+            .or(Err(DeployerError::GasEstimationFailure))?,
+    };
+    print_gas_estimate("deployment", gas, gas_price)
+        .or(Err(DeployerError::GasEstimationFailure))?;
+    Ok(gas)
+}
+
 /// Deploys a wasm file, activating if needed.
 pub async fn deploy_wasm_file(
     wasm_file: impl AsRef<Path>,
@@ -368,9 +428,13 @@ pub struct DeploymentConfig {
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeploymentError {
+    #[error("io error: {0}")]
+    Io(std::io::Error),
     #[error("rpc error: {0}")]
     Rpc(#[from] alloy::transports::RpcError<alloy::transports::TransportErrorKind>),
 
+    #[error("{0}")]
+    Build(#[from] crate::core::build::BuildError),
     #[error("{0}")]
     Check(#[from] crate::core::check::CheckError),
 

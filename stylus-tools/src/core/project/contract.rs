@@ -166,6 +166,8 @@ pub enum ContractStatus {
         code: Code,
         fee: U256,
     },
+    /// PVM contract ready for deployment (raw .polkavm bytecode).
+    Pvm { code: Vec<u8> },
 }
 
 impl ContractStatus {
@@ -173,6 +175,7 @@ impl ContractStatus {
         match &self {
             Self::Active { wasm, .. } => wasm,
             Self::Ready { wasm, .. } => wasm,
+            Self::Pvm { .. } => unreachable!("PVM contracts do not have processed WASM"),
         }
     }
 
@@ -180,6 +183,14 @@ impl ContractStatus {
         match &self {
             Self::Active { code, .. } => code,
             Self::Ready { code, .. } => code,
+            Self::Pvm { .. } => unreachable!("PVM contracts do not use Code"),
+        }
+    }
+
+    pub fn pvm_code(&self) -> &[u8] {
+        match &self {
+            Self::Pvm { code } => code,
+            _ => unreachable!("not a PVM contract"),
         }
     }
 
@@ -187,6 +198,7 @@ impl ContractStatus {
         match self {
             Self::Active { .. } => U256::ZERO,
             Self::Ready { fee, .. } => *fee,
+            Self::Pvm { .. } => U256::ZERO,
         }
     }
 }

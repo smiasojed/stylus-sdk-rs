@@ -31,6 +31,16 @@ impl DeploymentRequest {
         }
     }
 
+    /// Deployment request for PVM contracts (raw bytecode, no EVM prelude)
+    pub fn new_pvm(sender: Address, bytecode: &[u8], max_fee_per_gas_wei: Option<u128>) -> Self {
+        Self {
+            tx: TransactionRequest::default()
+                .with_from(sender)
+                .with_deploy_code(bytecode.to_vec()),
+            max_fee_per_gas_wei,
+        }
+    }
+
     /// Deployment request for constructor contracts
     pub fn new_with_args(
         sender: Address,
